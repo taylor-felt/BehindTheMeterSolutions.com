@@ -23,7 +23,9 @@ with open('Utilities.csv', encoding='utf-8') as f:
         conn.commit()
         cur.execute('SELECT id FROM states WHERE name=?',(state,))
         state_id=cur.fetchone()[0]
-        cur.execute('INSERT OR IGNORE INTO utilities(state_id,name) VALUES(?,?)',(state_id, util))
+        cur.execute('SELECT id FROM utilities WHERE state_id=? AND name=?',(state_id, util))
+        if not cur.fetchone():
+            cur.execute('INSERT INTO utilities(state_id,name) VALUES(?,?)',(state_id, util))
 conn.commit()
 conn.close()
 print('Loaded utilities')

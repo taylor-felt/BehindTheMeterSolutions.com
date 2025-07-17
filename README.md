@@ -12,11 +12,11 @@ python load_utilities.py  # one time to create states/utilities
 python app.py
 ```
 
-Open `index.html` in your browser. The page will communicate with the running Flask API on port `5000`.
+Start the server and then visit `http://localhost:5000/` in your browser. The index page is served directly from Flask so the JavaScript can communicate with the API without CORS issues.
 
 ## Features
 
-* Import rate schedules from an Excel file.
+* Import rate schedules from an Excel file. The upload endpoint automatically skips the first two rows of the provided PG&E spreadsheet.
 * Dependent drop downs for state, utility and available rate schedules.
 * Ability to view and update a selected schedule.
 * Downloadable Excel template for importing data.
