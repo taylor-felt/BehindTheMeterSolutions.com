@@ -2,79 +2,120 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pong</title>
+<title>Rate Schedule Manager</title>
 <style>
-  body { margin: 0; background: #000; color: #fff; font-family: sans-serif; text-align: center; }
-  canvas { background: #222; display: block; margin: 20px auto; }
+body { font-family: Arial, sans-serif; margin: 20px; }
+label { display:block; margin-top:10px; }
+select, textarea, input { width: 300px; }
+#status { font-weight:bold; }
 </style>
 </head>
 <body>
-<canvas id="game" width="600" height="400"></canvas>
+<h1>Rate Schedule Manager</h1>
+<div>
+  <label>State
+    <select id="state"></select>
+  </label>
+  <label>Utility
+    <select id="utility"></select>
+  </label>
+  <label>Rate Schedule
+    <select id="schedule"></select>
+  </label>
+  <div id="status"></div>
+</div>
+<div>
+  <h3>Details</h3>
+  <input id="name" placeholder="Name"><br>
+  <label>Status
+    <select id="schedStatus">
+      <option value="Active">Active</option>
+      <option value="Archived">Archived</option>
+      <option value="Expired">Expired</option>
+    </select>
+  </label>
+  <label>JSON Details
+    <textarea id="details" rows="6"></textarea>
+  </label>
+  <button id="save">Save</button>
+  <button id="new">New</button>
+</div>
+<div>
+  <h3>Import from Excel</h3>
+  <input type="file" id="file">
+  <button id="upload">Upload</button>
+  <a href="http://localhost:5000/api/template">Download Template</a>
+</div>
 <script>
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
-const paddleWidth = 10;
-const paddleHeight = 80;
-const ballSize = 10;
-let leftY = canvas.height/2 - paddleHeight/2;
-let rightY = canvas.height/2 - paddleHeight/2;
-let ballX = canvas.width/2;
-let ballY = canvas.height/2;
-let ballVX = 4;
-let ballVY = 4;
-const speed = 6;
-const keys = {};
-
-function draw(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  // paddles
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, leftY, paddleWidth, paddleHeight);
-  ctx.fillRect(canvas.width - paddleWidth, rightY, paddleWidth, paddleHeight);
-  // ball
-  ctx.fillRect(ballX - ballSize/2, ballY - ballSize/2, ballSize, ballSize);
+async function fetchStates(){
+  const res = await fetch('http://localhost:5000/api/states');
+  const data = await res.json();
+  const sel=document.getElementById('state');
+  sel.innerHTML='<option value="">Select</option>';
+  data.forEach(s=> sel.innerHTML+=`<option value="${s.id}">${s.name}</option>`);
+}
+async function fetchUtilities(){
+  const stateId=document.getElementById('state').value;
+  const res = await fetch(`http://localhost:5000/api/utilities?state_id=${stateId}`);
+  const data = await res.json();
+  const sel=document.getElementById('utility');
+  sel.innerHTML='<option value="">Select</option>';
+  data.forEach(u=> sel.innerHTML+=`<option value="${u.id}">${u.name}</option>`);
+}
+async function fetchSchedules(){
+  const utilId=document.getElementById('utility').value;
+  const res = await fetch(`http://localhost:5000/api/rate_schedules?utility_id=${utilId}`);
+  const data = await res.json();
+  const sel=document.getElementById('schedule');
+  sel.innerHTML='<option value="">Select</option>';
+  data.forEach(r=> sel.innerHTML+=`<option value="${r.id}">${r.name}</option>`);
+}
+async function loadSchedule(){
+  const id=document.getElementById('schedule').value;
+  if(!id) return;
+  const res = await fetch(`http://localhost:5000/api/rate_schedule/${id}`);
+  const data = await res.json();
+  document.getElementById('name').value=data.name;
+  document.getElementById('schedStatus').value=data.status;
+  document.getElementById('details').value=data.details;
+  document.getElementById('status').textContent=data.status;
+}
+async function saveSchedule(){
+  const id=document.getElementById('schedule').value;
+  const payload={
+    name:document.getElementById('name').value,
+    status:document.getElementById('schedStatus').value,
+    details:document.getElementById('details').value
+  };
+  if(id){
+    await fetch(`http://localhost:5000/api/rate_schedule/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  }else{
+    payload.utility_id=document.getElementById('utility').value;
+    const res=await fetch('http://localhost:5000/api/rate_schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await res.json();
+    document.getElementById('schedule').innerHTML+=`<option value="${data.id}">${payload.name}</option>`;
+    document.getElementById('schedule').value=data.id;
+  }
+  document.getElementById('status').textContent=payload.status;
+}
+async function uploadFile(){
+  const file=document.getElementById('file').files[0];
+  if(!file) return;
+  const form=new FormData();
+  form.append('file',file);
+  await fetch('http://localhost:5000/api/upload',{method:'POST',body:form});
+  alert('Uploaded');
+  fetchStates();
 }
 
-function update(){
-  if(keys['w'] && leftY > 0) leftY -= speed;
-  if(keys['s'] && leftY < canvas.height - paddleHeight) leftY += speed;
-  if(keys['ArrowUp'] && rightY > 0) rightY -= speed;
-  if(keys['ArrowDown'] && rightY < canvas.height - paddleHeight) rightY += speed;
+document.getElementById('state').addEventListener('change',()=>{fetchUtilities();document.getElementById('schedule').innerHTML='';});
+document.getElementById('utility').addEventListener('change',()=>{fetchSchedules();});
+document.getElementById('schedule').addEventListener('change',loadSchedule);
+document.getElementById('save').addEventListener('click',saveSchedule);
+document.getElementById('new').addEventListener('click',()=>{document.getElementById('schedule').value='';document.getElementById('name').value='';document.getElementById('details').value='';});
+document.getElementById('upload').addEventListener('click',uploadFile);
 
-  ballX += ballVX;
-  ballY += ballVY;
-
-  // top/bottom
-  if(ballY < ballSize/2 || ballY > canvas.height - ballSize/2) ballVY *= -1;
-  // left paddle
-  if(ballX - ballSize/2 < paddleWidth && ballY > leftY && ballY < leftY + paddleHeight){
-    ballVX *= -1;
-    ballX = paddleWidth + ballSize/2;
-  }
-  // right paddle
-  if(ballX + ballSize/2 > canvas.width - paddleWidth && ballY > rightY && ballY < rightY + paddleHeight){
-    ballVX *= -1;
-    ballX = canvas.width - paddleWidth - ballSize/2;
-  }
-
-  // score reset if out of bounds
-  if(ballX < 0 || ballX > canvas.width){
-    ballX = canvas.width/2;
-    ballY = canvas.height/2;
-    ballVX = 4 * (Math.random() > 0.5 ? 1 : -1);
-    ballVY = 4 * (Math.random() > 0.5 ? 1 : -1);
-  }
-}
-
-function loop(){
-  update();
-  draw();
-  requestAnimationFrame(loop);
-}
-
-window.addEventListener('keydown', (e)=>{ keys[e.key] = true; });
-window.addEventListener('keyup', (e)=>{ keys[e.key] = false; });
-loop();
+fetchStates();
 </script>
 </body>
 </html>
