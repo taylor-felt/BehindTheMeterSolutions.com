@@ -20,3 +20,19 @@ Start the server and then visit `http://localhost:5000/` in your browser. The in
 * Dependent drop downs for state, utility and available rate schedules.
 * Ability to view and update a selected schedule.
 * Downloadable Excel template for importing data.
+
+## Node.js Real-Time Dashboard (Preview)
+
+A prototype Node.js server has been added for experimenting with real-time
+connections to an eGauge energy monitor. It serves files from `public/` and
+broadcasts power data over WebSockets.
+
+### Running
+
+```bash
+npm install
+cp .env.example .env    # fill in your eGauge credentials
+npm start
+```
+
+Then open `http://localhost:3000/` to view the dashboard.
