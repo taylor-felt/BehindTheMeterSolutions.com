@@ -5,7 +5,11 @@ import pandas as pd
 from io import BytesIO
 
 DB = 'rates.db'
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.', static_url_path='')
+
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
 
 def get_db_connection():
     conn = sqlite3.connect(DB)
@@ -108,24 +112,36 @@ def upload():
         return 'No file', 400
     f = request.files['file']
     df = pd.read_excel(f)
+    if 'State' not in df.columns:
+        f.seek(0)
+        df = pd.read_excel(f, header=2)
     init_db()
     conn = get_db_connection()
     cur = conn.cursor()
     for _, row in df.iterrows():
-        state = row['State']
-        util = row['Utility']
-        name = row['Schedule']
-        status = row.get('Status','Active')
+        if pd.isna(row.get('State')) or pd.isna(row.get('Utility')) or pd.isna(row.get('Schedule')):
+            continue
+        state = str(row['State']).strip()
+        util = str(row['Utility']).strip()
+        name = str(row['Schedule']).strip()
+        status = row.get('Status', 'Active')
         details = row.drop(['State','Utility','Schedule','Status']).to_json()
         # get state id
         cur.execute('INSERT OR IGNORE INTO states(name) VALUES(?)', (state,))
         conn.commit()
         cur.execute('SELECT id FROM states WHERE name=?', (state,))
-        state_id = cur.fetchone()['id']
-        cur.execute('INSERT OR IGNORE INTO utilities(state_id,name) VALUES(?,?)', (state_id, util))
-        conn.commit()
+        res = cur.fetchone()
+        if not res:
+            continue
+        state_id = res['id']
         cur.execute('SELECT id FROM utilities WHERE name=? AND state_id=?', (util, state_id))
-        util_id = cur.fetchone()['id']
+        ures = cur.fetchone()
+        if ures:
+            util_id = ures['id']
+        else:
+            cur.execute('INSERT INTO utilities(state_id,name) VALUES(?,?)', (state_id, util))
+            conn.commit()
+            util_id = cur.lastrowid
         cur.execute('INSERT INTO rate_schedules (utility_id,name,status,details) VALUES(?,?,?,?)',
                     (util_id, name, status, details))
     conn.commit()

@@ -44,11 +44,11 @@ select, textarea, input { width: 300px; }
   <h3>Import from Excel</h3>
   <input type="file" id="file">
   <button id="upload">Upload</button>
-  <a href="http://localhost:5000/api/template">Download Template</a>
+  <a href="/api/template">Download Template</a>
 </div>
 <script>
 async function fetchStates(){
-  const res = await fetch('http://localhost:5000/api/states');
+  const res = await fetch('/api/states');
   const data = await res.json();
   const sel=document.getElementById('state');
   sel.innerHTML='<option value="">Select</option>';
@@ -56,7 +56,7 @@ async function fetchStates(){
 }
 async function fetchUtilities(){
   const stateId=document.getElementById('state').value;
-  const res = await fetch(`http://localhost:5000/api/utilities?state_id=${stateId}`);
+  const res = await fetch(`/api/utilities?state_id=${stateId}`);
   const data = await res.json();
   const sel=document.getElementById('utility');
   sel.innerHTML='<option value="">Select</option>';
@@ -64,7 +64,7 @@ async function fetchUtilities(){
 }
 async function fetchSchedules(){
   const utilId=document.getElementById('utility').value;
-  const res = await fetch(`http://localhost:5000/api/rate_schedules?utility_id=${utilId}`);
+  const res = await fetch(`/api/rate_schedules?utility_id=${utilId}`);
   const data = await res.json();
   const sel=document.getElementById('schedule');
   sel.innerHTML='<option value="">Select</option>';
@@ -73,7 +73,7 @@ async function fetchSchedules(){
 async function loadSchedule(){
   const id=document.getElementById('schedule').value;
   if(!id) return;
-  const res = await fetch(`http://localhost:5000/api/rate_schedule/${id}`);
+  const res = await fetch(`/api/rate_schedule/${id}`);
   const data = await res.json();
   document.getElementById('name').value=data.name;
   document.getElementById('schedStatus').value=data.status;
@@ -88,10 +88,10 @@ async function saveSchedule(){
     details:document.getElementById('details').value
   };
   if(id){
-    await fetch(`http://localhost:5000/api/rate_schedule/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    await fetch(`/api/rate_schedule/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   }else{
     payload.utility_id=document.getElementById('utility').value;
-    const res=await fetch('http://localhost:5000/api/rate_schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const res=await fetch('/api/rate_schedule',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await res.json();
     document.getElementById('schedule').innerHTML+=`<option value="${data.id}">${payload.name}</option>`;
     document.getElementById('schedule').value=data.id;
@@ -103,16 +103,32 @@ async function uploadFile(){
   if(!file) return;
   const form=new FormData();
   form.append('file',file);
-  await fetch('http://localhost:5000/api/upload',{method:'POST',body:form});
+  await fetch('/api/upload',{method:'POST',body:form});
   alert('Uploaded');
   fetchStates();
 }
 
-document.getElementById('state').addEventListener('change',()=>{fetchUtilities();document.getElementById('schedule').innerHTML='';});
-document.getElementById('utility').addEventListener('change',()=>{fetchSchedules();});
+document.getElementById('state').addEventListener('change',()=>{
+  fetchUtilities();
+  document.getElementById('schedule').innerHTML='';
+  document.getElementById('name').value='';
+  document.getElementById('details').value='';
+  document.getElementById('status').textContent='';
+});
+document.getElementById('utility').addEventListener('change',()=>{
+  fetchSchedules();
+  document.getElementById('name').value='';
+  document.getElementById('details').value='';
+  document.getElementById('status').textContent='';
+});
 document.getElementById('schedule').addEventListener('change',loadSchedule);
 document.getElementById('save').addEventListener('click',saveSchedule);
-document.getElementById('new').addEventListener('click',()=>{document.getElementById('schedule').value='';document.getElementById('name').value='';document.getElementById('details').value='';});
+document.getElementById('new').addEventListener('click',()=>{
+  document.getElementById('schedule').value='';
+  document.getElementById('name').value='';
+  document.getElementById('details').value='';
+  document.getElementById('status').textContent='';
+});
 document.getElementById('upload').addEventListener('click',uploadFile);
 
 fetchStates();
